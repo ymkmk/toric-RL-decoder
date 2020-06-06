@@ -19,8 +19,8 @@ class Replay_memory_uniform(object):
     def save(self, data, priority): # priority is not used 
         if len(self.memory) < self.capacity:
             self.memory.append(None)
-        self.memory[self.position] = data
-        self.position = (self.position + 1) % self.capacity
+        self.memory[self.position] = data #data = Transition(state, action, reward, next_state, terminal)
+        self.position = (self.position + 1) % self.capacity #positionを１つ進める。capacityを超えていた場合、古い順に上書き
 
     def sample(self, batch_size, beta): # beta is not used 
         if len(self.memory) < batch_size:

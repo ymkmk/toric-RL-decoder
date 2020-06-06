@@ -24,9 +24,10 @@ from .util import incremental_mean, convert_from_np_to_tensor, Transition
 
 class RL():
     def __init__(self, Network, Network_name, system_size=int, p_error=0.1, replay_memory_capacity=int, learning_rate=0.00025,
-                discount_factor=0.95, number_of_actions=3, max_nbr_actions_per_episode=50, device='cpu', replay_memory='uniform'):
+                discount_factor=0.95, number_of_actions=3, max_nbr_actions_per_episode=50, device = 'cpu', replay_memory='uniform'):
         # device
         self.device = device
+        
         # Toric code
         if system_size%2 > 0:
             self.toric = Toric_code(system_size)

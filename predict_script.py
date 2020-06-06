@@ -41,7 +41,8 @@ rl = RL(Network=network,
 
 # initial syndrome error generation 
 # generate syndrome with error probability 0.1 
-prediction_list_p_error = [0.1]
+prediction_list_p_error = [0.1
+]
 # generate syndrome with a fixed amount of errors 
 minimum_nbr_of_qubit_errors = int(system_size/2)+1 # minimum number of erorrs for logical qubit flip
 
