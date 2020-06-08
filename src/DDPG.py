@@ -109,20 +109,26 @@ class DDPG():
         batch_reward = convert_from_np_to_tensor(np.array(mini_batch.reward))
         batch_reward = batch_reward.to(self.device)
         # compute policy net output
-        output = self.actor(batch_state)
-        output = output.gather(1, batch_actions.view(-1, 1)).squeeze(1)    
+        actor_output = self.actor(batch_state)
+        actor_output = actor_output.gather(1, batch_actions.view(-1, 1)).squeeze(1)    
         # compute target network output 
         target_actor_output = self.get_target_actor_output(batch_next_state, batch_size)
         target_actor_output = target_actor_output.to(self.device)
         y = batch_reward + (batch_terminal * self.discount_factor * target_actor_output)
         # compute loss and update replay memory
-        loss_actor = self.get_loss(actor_criterion, actor_optimizer, y, output, weights, indices)
+        loss_actor = self.get_loss(actor_criterion, actor_optimizer, y, actor_output, weights, indices)
         # backpropagate loss
         loss_actor.backward()
         actor_optimizer.step()
         #
+        # compute critic net output
+        critic_output = self.critic(batch_state)
+        critic_output = critic_output.gather(1, batch_actions.view(-1, 1)).squeeze(1)    
+        # compute target network output 
+        target_critic_output = self.get_target_critic_output(batch_next_state, batch_size)
+        target_critic_output = target_critic_output.to(self.device)
         # compute loss and update replay memory
-        loss_critic = self.get_loss(critic_criterion, critic_optimizer, y, output, weights, indices)
+        loss_critic = self.get_loss(critic_criterion, critic_optimizer, y, actor_output, weights, indices)
         # backpropagate loss
         loss_critic.backward()
         critic_optimizer.step()
@@ -184,6 +190,104 @@ class DDPG():
                                                                         batch_size=batch_size, 
                                                                         action_index=action_index)
         return target_actor_output
+
+
+    #
+    def get_target_critic_output(self, batch_next_state, batch_size):
+        with torch.no_grad():
+            action_index = np.full(shape=(batch_size), fill_value=None)
+            target_actor_output,_,_ = self.get_network_output_next_state(batch_next_state=batch_next_state, 
+                                                                        batch_size=batch_size, 
+                                                                        action_index=action_index)
+        return target_actor_output
+    #
+
+    def get_q_loss(self, batch):
+        batch_state = batch['state']
+        batch_next_state = batch['next_state']
+        batch_actions = batch['action']
+        batch_rewards = batch['reward']
+        #batch_terminal = batch['is_state_terminal']
+        batchsize = len(batch_rewards)
+
+        with torch.no_grad():
+            # Target policy observes s_{t+1}
+            #next_actions = self.target_policy(batch_next_state)
+            next_actions = np.random.choice(actions, p=self.get_target_actor_output(batch_next_state))
+
+            # Q(s_{t+1}, mu(a_{t+1})) is evaluated.
+            # This should not affect the internal state of Q.
+            next_q = self.get_target_critic_output(batch_next_state, next_actions)
+
+            # Target Q-function observes s_{t+1} and a_{t+1}
+            batch_next_actions = batch['next_action']
+            self.target_q_function.update_state(batch_next_state, batch_next_actions)
+
+        ###ここサイズあってないかも###
+        target_q = batch_rewards + self.gamma * next_q
+
+        # Estimated Q-function observes s_t and a_t
+        predict_q = torch.reshape(
+            self.q_function(batch_state, batch_actions),
+            (batchsize,))
+
+        loss = self.q_criterion(target_q, predict_q)
+
+        # Update stats
+        self.average_critic_loss *= self.average_loss_decay
+        self.average_critic_loss += ((1 - self.average_loss_decay) * float(loss.array))
+
+        #loss.backward()
+        #self.q_optimizer.update()
+        return loss
+
+
+    def get_policy_loss(self, batch):
+        """Compute loss for actor.
+        Preconditions:
+          q_function must have seen up to s_{t-1} and s_{t-1}.
+          policy must have seen up to s_{t-1}.
+        Postconditions:
+          q_function must have seen up to s_t and s_t.
+          policy must have seen up to s_t.
+        """
+        batch_state = batch['state']
+        batch_action = batch['action']
+        batch_size = len(batch_action)
+
+        # Estimated policy observes s_t
+        onpolicy_actions = self.policy(batch_state).sample()
+
+        # Q(s_t, mu(s_t)) is evaluated.
+        # This should not affect the internal state of Q.
+        with torch.no_grad():
+            q = self.q_function(batch_state, onpolicy_actions)
+
+        # Estimated Q-function observes s_t and a_t
+        if isinstance(self.q_function, Recurrent):
+            self.q_function.update_state(batch_state, batch_action)
+
+        # Avoid the numpy #9165 bug (see also: chainer #2744)
+        q = q[:, :]
+
+        # Since we want to maximize Q, loss is negation of Q
+        loss = - torch.sum(q) / batch_size
+
+        # Update stats
+        self.average_actor_loss *= self.average_loss_decay
+        self.average_actor_loss += ((1 - self.average_loss_decay) *
+                                    float(loss.array))
+        return loss
+
+    def update(self, experience):
+        batch = batch_experiences(experiences, self.xp, self.phi, self.gamma)
+        q_loss = get_q_loss(batch)
+        q_loss.backward
+        critic_optimizer.step()
+        actor_loss = get_policy_loss(batch)
+        actor_loss.backward
+        actor_optimizer.step()
+
 
 
     def get_batch_input(self, state_batch):
