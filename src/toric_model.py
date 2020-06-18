@@ -10,7 +10,7 @@ class Toric_code():
         self.system_size = size
         self.plaquette_matrix = np.zeros((self.system_size, self.system_size), dtype=int)   # dont use self.plaquette
         self.vertex_matrix = np.zeros((self.system_size, self.system_size), dtype=int)      # dont use self.vertex 
-        self.qubit_matrix = np.zeros((2, self.system_size, self.system_size), dtype=int)
+        self.qubit_matrix = np.zeros((2, self.system_size, self.system_size), dtype=int)    # 2はX,Zの2種類のエラーのため?
         self.current_state = np.stack((self.vertex_matrix, self.plaquette_matrix,), axis=0)
         self.next_state = np.stack((self.vertex_matrix, self.plaquette_matrix), axis=0)
         self.ground_state = True    # True: only trivial loops, 
@@ -25,10 +25,10 @@ class Toric_code():
         for i in range(2):
             qubits = np.random.uniform(0, 1, size=(self.system_size, self.system_size))
             error = qubits > p_error
-            no_error = qubits < p_error
+            no_error = qubits <= p_error # 元のコードでは=が入っていなかった
             qubits[error] = 0
             qubits[no_error] = 1
-            pauli_error = np.random.randint(3, size=(self.system_size, self.system_size)) + 1
+            pauli_error = np.random.randint(3, size=(self.system_size, self.system_size)) + 1 #####ここの処理怪しい(iで複数回やる必要性？)
             self.qubit_matrix[i,:,:] = np.multiply(qubits, pauli_error)
         self.syndrom('state')
 
@@ -43,7 +43,7 @@ class Toric_code():
 
 
     def step(self, action):
-        # uses as input np.array of form (qubit_matrix=int, row=int, col=int, add_operator=int)
+        # uses as input np.array of form )(qubit_matrix=int, row=int, col=int, add_operator=int
         qubit_matrix = action.position[0]
         row = action.position[1]
         col = action.position[2]

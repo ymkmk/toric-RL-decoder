@@ -7,6 +7,7 @@ Reference:
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torchsummary import summary
 #from torchsummary import summary
 
 
@@ -112,10 +113,79 @@ def ResNet101():
 def ResNet152():
     return ResNet(Bottleneck, [3,8,36,3])
 
+'''
 def test():
     net = ResNet18()
-    #summary(net, (2, 5, 5))
-    y = net(torch.randn(1,2,5,5))
+    summary(net, (2, 9, 9))
+    #y = net(torch.randn(1,2,5,5))
     #print(y.size())
 
-#test()
+test()
+'''
+
+'''
+ResNet18
+system_size : 7 (5ではSize missmatch)
+----------------------------------------------------------------
+        Layer (type)               Output Shape         Param #
+================================================================
+            Conv2d-1             [-1, 64, 7, 7]           1,152
+       BatchNorm2d-2             [-1, 64, 7, 7]             128
+            Conv2d-3             [-1, 64, 7, 7]          36,864
+       BatchNorm2d-4             [-1, 64, 7, 7]             128
+            Conv2d-5             [-1, 64, 7, 7]          36,864
+       BatchNorm2d-6             [-1, 64, 7, 7]             128
+        BasicBlock-7             [-1, 64, 7, 7]               0
+            Conv2d-8             [-1, 64, 7, 7]          36,864
+       BatchNorm2d-9             [-1, 64, 7, 7]             128
+           Conv2d-10             [-1, 64, 7, 7]          36,864
+      BatchNorm2d-11             [-1, 64, 7, 7]             128
+       BasicBlock-12             [-1, 64, 7, 7]               0
+           Conv2d-13            [-1, 128, 7, 7]          73,728
+      BatchNorm2d-14            [-1, 128, 7, 7]             256
+           Conv2d-15            [-1, 128, 7, 7]         147,456
+      BatchNorm2d-16            [-1, 128, 7, 7]             256
+           Conv2d-17            [-1, 128, 7, 7]           8,192
+      BatchNorm2d-18            [-1, 128, 7, 7]             256
+       BasicBlock-19            [-1, 128, 7, 7]               0
+           Conv2d-20            [-1, 128, 7, 7]         147,456
+      BatchNorm2d-21            [-1, 128, 7, 7]             256
+           Conv2d-22            [-1, 128, 7, 7]         147,456
+      BatchNorm2d-23            [-1, 128, 7, 7]             256
+       BasicBlock-24            [-1, 128, 7, 7]               0
+           Conv2d-25            [-1, 256, 7, 7]         294,912
+      BatchNorm2d-26            [-1, 256, 7, 7]             512
+           Conv2d-27            [-1, 256, 7, 7]         589,824
+      BatchNorm2d-28            [-1, 256, 7, 7]             512
+           Conv2d-29            [-1, 256, 7, 7]          32,768
+      BatchNorm2d-30            [-1, 256, 7, 7]             512
+       BasicBlock-31            [-1, 256, 7, 7]               0
+           Conv2d-32            [-1, 256, 7, 7]         589,824
+      BatchNorm2d-33            [-1, 256, 7, 7]             512
+           Conv2d-34            [-1, 256, 7, 7]         589,824
+      BatchNorm2d-35            [-1, 256, 7, 7]             512
+       BasicBlock-36            [-1, 256, 7, 7]               0
+           Conv2d-37            [-1, 512, 4, 4]       1,179,648
+      BatchNorm2d-38            [-1, 512, 4, 4]           1,024
+           Conv2d-39            [-1, 512, 4, 4]       2,359,296
+      BatchNorm2d-40            [-1, 512, 4, 4]           1,024
+           Conv2d-41            [-1, 512, 4, 4]         131,072
+      BatchNorm2d-42            [-1, 512, 4, 4]           1,024
+       BasicBlock-43            [-1, 512, 4, 4]               0
+           Conv2d-44            [-1, 512, 4, 4]       2,359,296
+      BatchNorm2d-45            [-1, 512, 4, 4]           1,024
+           Conv2d-46            [-1, 512, 4, 4]       2,359,296
+      BatchNorm2d-47            [-1, 512, 4, 4]           1,024
+       BasicBlock-48            [-1, 512, 4, 4]               0
+           Linear-49                    [-1, 3]           1,539
+================================================================
+Total params: 11,169,795
+Trainable params: 11,169,795
+Non-trainable params: 0
+----------------------------------------------------------------
+Input size (MB): 0.00
+Forward/backward pass size (MB): 2.76
+Params size (MB): 42.61
+Estimated Total Size (MB): 45.37
+----------------------------------------------------------------
+'''

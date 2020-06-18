@@ -22,22 +22,20 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #   ResNet50
 #   ResNet101
 #   ResNet152
-NETWORK = ResNet18
+#NETWORK = ResNet18
 
 # common system sizes are 3,5,7 and 9 
+# ResNet only alloe system size 7
 # grid size must be odd! 
-SYSTEM_SIZE = 7
+SYSTEM_SIZE = 5
 
 # For continuing the training of an agent
 continue_training = False
 # this file is stored in the network folder and contains the trained agent.  
-NETWORK_FILE_NAME = 'size_7_NN_17'
+NETWORK_FILE_NAME = 'size_5_NN_11'
 
-# initialize RL class and training parameters 
-rl = DDPG(Network=NETWORK,
-        Network_name=NETWORK_FILE_NAME,
-        system_size=SYSTEM_SIZE,
-        p_error=0.1,
+# initialize DDPG class and training parameters 
+ddpg = DDPG(p_error=0.1,
         replay_memory_capacity=20000, 
         learning_rate=0.00025,
         discount_factor=0.95,
@@ -49,7 +47,7 @@ rl = DDPG(Network=NETWORK,
 
 # generate folder structure 
 timestamp = time.strftime("%y_%m_%d__%H_%M_%S__")
-PATH = 'data/training__' +str(NETWORK_FILE_NAME) +'_'+str(SYSTEM_SIZE)+'__' + timestamp
+PATH = 'data/training__' +str(NETWORK_FILE_NAME) +'_'+str(SYSTEM_SIZE)+'DDPG__' + timestamp
 PATH_epoch = PATH + '/network_epoch'
 if not os.path.exists(PATH):
     os.makedirs(PATH)
@@ -59,10 +57,10 @@ if not os.path.exists(PATH):
 if continue_training == True:
     print('continue training')
     PATH2 = 'network/'+str(NETWORK_FILE_NAME)+'.pt'
-    rl.load_network(PATH2)
+    ddpg.load_network(PATH2)
 
 # train for n epochs the agent (test parameters)
-rl.train_for_n_epochs(training_steps=50,
+ddpg.train_for_n_epochs(training_steps=50,
                     num_of_predictions=1,
                     num_of_steps_prediction=5,
                     epochs=1,

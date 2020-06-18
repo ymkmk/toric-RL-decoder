@@ -21,11 +21,11 @@ from NN import NN_11, NN_17
 from ResNet import ResNet18, ResNet34, ResNet50, ResNet101, ResNet152
 from .util import incremental_mean, convert_from_np_to_tensor, Transition
 #imoprt actor critic
-from .model import Actor, Critic
+from model import Actor, Critic
 
 
 class DDPG():
-    def __init__(self, Network, Network_name, system_size=int, p_error=0.1, replay_memory_capacity=int, learning_rate=0.00025,
+    def __init__(self, system_size=5, p_error=0.1, replay_memory_capacity=int, learning_rate=0.00025,
                 discount_factor=0.95, number_of_actions=3, max_nbr_actions_per_episode=50, device = 'cpu', replay_memory='uniform'):
         # device
         self.device = device
@@ -50,10 +50,8 @@ class DDPG():
             raise ValueError('Invalid memory type, please use only proportional or uniform.')
         
         # Network
-        self.network_name = Network_name
-        self.network = Network
-        self.actor = Actor(self.network)
-        self.critic = Critic(self.network)
+        self.actor = Actor()
+        self.critic = Critic()
 
         self.target_actor = deepcopy(self.actor)
         self.target_critic = deepcopy(self.actor)
@@ -63,7 +61,7 @@ class DDPG():
         self.target_actor = self.target_actor.to(self.device)
         self.target_critic = self.target_critic.to(self.device)
         self.learning_rate = learning_rate
-        # hyperparameters RL
+        # hyperparameters DDPG
         self.discount_factor = discount_factor
         self.number_of_actions = number_of_actions
 
@@ -115,6 +113,10 @@ class DDPG():
         target_actor_output = self.get_target_actor_output(batch_next_state, batch_size)
         target_actor_output = target_actor_output.to(self.device)
         y = batch_reward + (batch_terminal * self.discount_factor * target_actor_output)
+        #onpolicy_actions = torch.sample(self.actor(batch_state))
+        prob = self.actor(batch_state)
+        onpolicy_actions = np.random.choice(1,3, p=prob)
+        q = q_function(batch_state, onpolicy_actions)
         # compute loss and update replay memory
         loss_actor = self.get_loss(actor_criterion, actor_optimizer, y, actor_output, weights, indices)
         # backpropagate loss
@@ -132,19 +134,27 @@ class DDPG():
         # backpropagate loss
         loss_critic.backward()
         critic_optimizer.step()
-        #
+        self.update()
 
 
-    def get_loss(self, criterion, optimizer, y, output, weights, indices):
-        loss = criterion(y, output)
-        optimizer.zero_grad()
+    def get_critic_loss(self, critic_criterion, critic_optimizer, y, output, weights, indices):
+        loss = critic_criterion(y, output)
+        critic_optimizer.zero_grad()
+
+        return loss.mean()
+
+
+    def get_actor_loss(self, actor_criterion, actor_optimizer, q):
+        return -torch.sum(q)/self.batch_size
+
+
+    def update_replay_memory(weights):
         # for prioritized experience replay
         if self.replay_memory == 'proportional':
             loss = convert_from_np_to_tensor(np.array(weights)) * loss.cpu()
             priorities = loss
             priorities = np.absolute(priorities.detach().numpy())
             self.memory.priority_update(indices, priorities)
-        return loss.mean()
 
 
     def get_network_output_next_state(self, batch_next_state=float, batch_size=int, action_index=None):
@@ -263,10 +273,6 @@ class DDPG():
         with torch.no_grad():
             q = self.q_function(batch_state, onpolicy_actions)
 
-        # Estimated Q-function observes s_t and a_t
-        if isinstance(self.q_function, Recurrent):
-            self.q_function.update_state(batch_state, batch_action)
-
         # Avoid the numpy #9165 bug (see also: chainer #2744)
         q = q[:, :]
 
@@ -279,7 +285,7 @@ class DDPG():
                                     float(loss.array))
         return loss
 
-    def update(self, experience):
+    def update(self,):
         batch = batch_experiences(experiences, self.xp, self.phi, self.gamma)
         q_loss = get_q_loss(batch)
         q_loss.backward
@@ -287,7 +293,6 @@ class DDPG():
         actor_loss = get_policy_loss(batch)
         actor_loss.backward
         actor_optimizer.step()
-
 
 
     def get_batch_input(self, state_batch):

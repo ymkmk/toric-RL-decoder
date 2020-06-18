@@ -5,6 +5,15 @@ import torch.optim as optim
 import torch.nn.functional as F
 from src.util import conv_to_fully_connected, pad_circular
 
+from torchsummary import summary
+
+
+'''
+input:
+    system_size : 格子のサイズ
+    number_of_actions : 行動の種類(出力サイズの指定に用いる)
+    device : cpu or cuda
+'''
 
 # neural network CNN with one fully connected layer
 class NN_11(nn.Module):
@@ -100,3 +109,79 @@ class NN_17(nn.Module):
         x = self.linear1(x)
         return x
 
+#def test():
+#    model = NN_11(5,3,'cpu')
+#    summary(model,(2,5,5))
+
+#test()
+
+
+'''
+NN_11
+system_size = 5
+----------------------------------------------------------------
+        Layer (type)               Output Shape         Param #
+================================================================
+            Conv2d-1            [-1, 128, 5, 5]           2,432
+            Conv2d-2            [-1, 128, 5, 5]         147,584
+            Conv2d-3            [-1, 120, 5, 5]         138,360
+            Conv2d-4            [-1, 111, 5, 5]         119,991
+            Conv2d-5            [-1, 104, 5, 5]         104,000
+            Conv2d-6            [-1, 103, 5, 5]          96,511
+            Conv2d-7             [-1, 90, 5, 5]          83,520
+            Conv2d-8             [-1, 80, 5, 5]          64,880
+            Conv2d-9             [-1, 73, 5, 5]          52,633
+           Conv2d-10             [-1, 71, 5, 5]          46,718
+           Conv2d-11             [-1, 64, 3, 3]          40,960
+           Linear-12                    [-1, 3]           1,731
+================================================================
+Total params: 899,320
+Trainable params: 899,320
+Non-trainable params: 0
+----------------------------------------------------------------
+Input size (MB): 0.00
+Forward/backward pass size (MB): 0.20
+Params size (MB): 3.43
+Estimated Total Size (MB): 3.63
+----------------------------------------------------------------
+'''
+
+
+'''
+NN_17
+system_size = 5
+----------------------------------------------------------------
+        Layer (type)               Output Shape         Param #
+================================================================
+            Conv2d-1            [-1, 256, 5, 5]           4,864
+            Conv2d-2            [-1, 256, 5, 5]         590,080
+            Conv2d-3            [-1, 251, 5, 5]         578,555
+            Conv2d-4            [-1, 250, 5, 5]         565,000
+            Conv2d-5            [-1, 240, 5, 5]         540,240
+            Conv2d-6            [-1, 240, 5, 5]         518,640
+            Conv2d-7            [-1, 235, 5, 5]         507,835
+            Conv2d-8            [-1, 233, 5, 5]         493,028
+            Conv2d-9            [-1, 233, 5, 5]         488,834
+           Conv2d-10            [-1, 229, 5, 5]         480,442
+           Conv2d-11            [-1, 225, 5, 5]         463,950
+           Conv2d-12            [-1, 223, 5, 5]         451,798
+           Conv2d-13            [-1, 220, 5, 5]         441,760
+           Conv2d-14            [-1, 220, 5, 5]         435,820
+           Conv2d-15            [-1, 220, 5, 5]         435,820
+           Conv2d-16            [-1, 215, 5, 5]         425,915
+           Conv2d-17            [-1, 214, 5, 5]         414,304
+           Conv2d-18            [-1, 205, 5, 5]         395,035
+           Conv2d-19            [-1, 204, 5, 5]         376,584
+           Conv2d-20            [-1, 200, 3, 3]         367,400
+           Linear-21                    [-1, 3]           5,403
+================================================================
+Total params: 8,981,307
+Trainable params: 8,981,307
+Non-trainable params: 0
+----------------------------------------------------------------
+Input size (MB): 0.00
+Forward/backward pass size (MB): 0.85
+Params size (MB): 34.26
+Estimated Total Size (MB): 35.11
+----------------------------------------------------------------
+'''
