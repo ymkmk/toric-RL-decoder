@@ -3,6 +3,7 @@ import time
 import os
 import torch
 import _pickle as cPickle
+from src.RL import RL
 from src.RL_DDQN import RL_DDQN
 from src.toric_model import Toric_code
 
@@ -30,10 +31,10 @@ SYSTEM_SIZE = 5
 # For continuing the training of an agent
 continue_training = False
 # this file is stored in the network folder and contains the trained agent.  
-NETWORK_FILE_NAME = 'size_7_NN_17'
+NETWORK_FILE_NAME = 'size_5_NN_11'
 
 # initialize RL class and training parameters 
-rl = RL_DDQN(Network=NETWORK,
+rl = RL(Network=NETWORK,
         Network_name=NETWORK_FILE_NAME,
         system_size=SYSTEM_SIZE,
         p_error=0.1,
@@ -61,25 +62,24 @@ if continue_training == True:
     rl.load_network(PATH2)
 
 # train for n epochs the agent (test parameters)
-rl.train_for_n_epochs(training_steps=1000,
+'''rl.train_for_n_epochs(training_steps=96,
                     num_of_predictions=1,
                     num_of_steps_prediction=5,
-                    epochs=10,
+                    epochs=3,
                     target_update=10,
                     optimizer='Adam',
                     batch_size=4,
                     directory_path = PATH,
                     prediction_list_p_error=[0.1],
-                    replay_start_size=48)
+                    replay_start_size=48)'''
 
 
-""" rl.train_for_n_epochs(training_steps=10000,
-                            num_of_predictions=100,
-                            epochs=100,
-                            target_update=1000,
-                            optimizer='Adam',
-                            batch_size=32,
-                            directory_path = PATH,
-                            prediction_list_p_error=[0.1],
-                            minimum_nbr_of_qubit_errors=0)   """
-               
+rl.train_for_n_epochs(training_steps=1000,
+                        num_of_predictions=500,
+                        epochs=50,
+                        target_update=1000,
+                        optimizer='Adam',
+                        batch_size=32,
+                        directory_path = PATH,
+                        prediction_list_p_error=[0.1],
+                        minimum_nbr_of_qubit_errors=0)

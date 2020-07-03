@@ -21,10 +21,43 @@ from NN import NN_11, NN_17
 from ResNet import ResNet18, ResNet34, ResNet50, ResNet101, ResNet152
 from .util import incremental_mean, convert_from_np_to_tensor, Transition
 
+import logging
+import time
+import datetime
+import pathlib
+import csv
+
+from logging import getLogger, StreamHandler, Formatter, FileHandler, DEBUG
+
+#log set up
+def setup_logger(modname=__name__):
+    # 保存するファイル名を指定
+    log_folder = os.path.join(os.getcwd(),'src', 'log', 'DDQN' , '{}.log'.format(datetime.date.today()))
+    print(log_folder)
+    p_new = pathlib.Path(log_folder)
+    with p_new.open(mode='w') as f:
+        f.write('')
+    # ログの初期設定を行う
+    logger = getLogger(modname)
+    logger.setLevel(DEBUG)
+
+    #sh = StreamHandler()
+    #sh.setLevel(DEBUG)
+    #formatter = Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    #sh.setFormatter(formatter)
+    #logger.addHandler(sh)
+
+    fh = FileHandler(log_folder) #fh = file handler
+    fh.setLevel(DEBUG)
+    fh_formatter = Formatter('%(asctime)s - %(filename)s - %(name)s - %(lineno)d - %(levelname)s - %(message)s')
+    fh.setFormatter(fh_formatter)
+    logger.addHandler(fh)
+    return logger
 
 class RL_DDQN():
     def __init__(self, Network, Network_name, system_size=int, p_error=0.1, replay_memory_capacity=int, learning_rate=0.00025,
                 discount_factor=0.95, number_of_actions=3, max_nbr_actions_per_episode=50, device = 'cpu', replay_memory='uniform'):
+        self.begin_time = time.time()
         # device
         self.device = device
         
@@ -60,6 +93,8 @@ class RL_DDQN():
         # hyperparameters RL
         self.discount_factor = discount_factor
         self.number_of_actions = number_of_actions
+        #set up logger
+        self.logger = setup_logger()
 
 
     def save_network(self, PATH):
@@ -73,6 +108,7 @@ class RL_DDQN():
         self.target_net = self.target_net.to(self.device)
 
 
+    #output loss
     def experience_replay(self, criterion, optimizer, batch_size):
         self.q_function.train()
         self.target_net.eval()
@@ -105,6 +141,7 @@ class RL_DDQN():
         # backpropagate loss
         loss.backward()
         optimizer.step()
+        return loss
 
     ##add act
     #使ってない
@@ -205,7 +242,7 @@ class RL_DDQN():
         batch_network_output = convert_from_np_to_tensor(batch_network_output)
         batch_perspectives = convert_from_np_to_tensor(batch_perspectives)
         #batch_network_output, batch_perspectives, batch_actions
-        print(batch_actions)
+        #print(batch_actions)
 
         with torch.no_grad():
             action_index2 = np.full(shape=(batch_size), fill_value=None)
@@ -233,9 +270,10 @@ class RL_DDQN():
         return batch_input.to(self.device)
 
 
-    def train(self, training_steps=int, target_update=int, epsilon_start=1.0, num_of_epsilon_steps=10, 
+    def train(self, epoch, training_steps=int, target_update=int, epsilon_start=1.0, num_of_epsilon_steps=10, 
         epsilon_end=0.1, reach_final_epsilon=0.5, optimizer=str,
         batch_size=int, replay_start_size=int, minimum_nbr_of_qubit_errors=0):
+        losses = []
         # set network to train mode
         self.q_function.train()
         # define criterion and optimizer
@@ -287,9 +325,13 @@ class RL_DDQN():
                 # experience replay
                 if steps_counter > replay_start_size:
                     update_counter += 1
-                    self.experience_replay(criterion,
+                    loss = self.experience_replay(criterion,
                                             optimizer,
                                             batch_size)
+                    losses.append(loss)
+                    self.logger.info('epoch:{:03}, step:{:05}/{:05}, loss:{:07}'.format(epoch, steps_counter, training_steps, loss))
+                    if steps_counter % 10 == 0:
+                        print('epoch:{:03}, step:{:05}/{:05}, loss:{:07}'.format(epoch, steps_counter, training_steps, loss))              
                 # set target_net to policy_net
                 if update_counter % target_update == 0:
                     self.target_net = deepcopy(self.q_function)
@@ -299,6 +341,9 @@ class RL_DDQN():
                 # set next_state to new state and update terminal state
                 self.toric.current_state = self.toric.next_state
                 terminal_state = self.toric.terminal_state(self.toric.current_state)
+
+        avg_loss = sum(losses)/len(losses)
+        return avg_loss
 
 
     def get_reward(self):
@@ -466,24 +511,36 @@ class RL_DDQN():
     def train_for_n_epochs(self, training_steps=int, epochs=int, num_of_predictions=100, num_of_steps_prediction=50, target_update=100, 
         optimizer=str, save=True, directory_path='network', prediction_list_p_error=[0.1],
         batch_size=32, replay_start_size=32, minimum_nbr_of_qubit_errors=0):
+
+        average_number_of_steps_lists = []
+        mean_q_lists = []
+
+
+        #replay_start_size > batch_size  じゃないとエラー
+        if replay_start_size < batch_size:
+            replay_start_size=batch_size
         
         data_all = []
         data_all = np.zeros((1, 19))
 
-        for i in range(epochs):
-            self.train(training_steps=training_steps,
+        for i in range(1,epochs+1):
+            self.train(i,
+                    training_steps=training_steps,
                     target_update=target_update,
                     optimizer=optimizer,
                     batch_size=batch_size,
                     replay_start_size=replay_start_size,
                     minimum_nbr_of_qubit_errors=minimum_nbr_of_qubit_errors)
-            print('training done, epoch: ', i+1)
+            print('runtime:{}(h)\ntraining done, epoch:{}'.format((time.time() - self.begin_time)/3600, i))
             # evaluate network
             error_corrected_list, ground_state_list, average_number_of_steps_list, mean_q_list, failed_syndroms, ground_state_list, prediction_list_p_error, failure_rate = self.prediction(num_of_predictions=num_of_predictions, 
                                                                                                                                                                         prediction_list_p_error=prediction_list_p_error, 
                                                                                                                                                                         minimum_nbr_of_qubit_errors=int(self.system_size/2)+1,
                                                                                                                                                                         save_prediction=True,
                                                                                                                                                                         num_of_steps=num_of_steps_prediction)
+
+            average_number_of_steps_lists.append(average_number_of_steps_list)
+            mean_q_lists.append(mean_q_list)
 
             data_all = np.append(data_all, np.array([[self.system_size, self.network_name, i+1, self.replay_memory, self.device, self.learning_rate, target_update, optimizer,
                 self.discount_factor, training_steps * (i+1), mean_q_list[0], prediction_list_p_error[0], num_of_predictions, len(failed_syndroms)/2, error_corrected_list[0], ground_state_list[0], average_number_of_steps_list[0],failure_rate, self.p_error]]), axis=0)
@@ -495,5 +552,13 @@ class RL_DDQN():
             PATH = directory_path + '/network_epoch/size_{3}_{2}_epoch_{0}_memory_{7}_target_update_{5}_optimizer_{6}__steps_{4}_q_{1}_discount_{8}_learning_rate_{9}.pt'.format(
                 i+1, np.round(mean_q_list[0], 4), self.network_name, self.system_size, step, target_update, optimizer, self.replay_memory, self.discount_factor, self.learning_rate)
             self.save_network(PATH)
+
+
+        with open('new.csv','w') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(average_number_of_steps_lists)
+            writer.writerow(mean_q_lists)
+        csvfile.close()
+        #print('average_number_of_steps:{}\n,mean_q_list:{}'.format(average_number_of_steps_lists,mean_q_lists))
             
         return error_corrected_list

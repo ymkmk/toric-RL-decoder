@@ -22,6 +22,40 @@ from ResNet import ResNet18, ResNet34, ResNet50, ResNet101, ResNet152
 from .util import incremental_mean, convert_from_np_to_tensor, Transition
 
 
+import logging
+import time
+import datetime
+import pathlib
+
+from logging import getLogger, StreamHandler, Formatter, FileHandler, DEBUG
+import csv
+
+#log set up
+def setup_logger(modname=__name__):
+    #begin_time = time.time()
+    # 保存するファイル名を指定
+    log_folder = os.path.join(os.getcwd(),'src', 'log', 'DQN' , '{}.log'.format(datetime.date.today()))
+    print(log_folder)
+    p_new = pathlib.Path(log_folder)
+    with p_new.open(mode='w') as f:
+        f.write('')
+    # ログの初期設定を行う
+    logger = getLogger(modname)
+    logger.setLevel(DEBUG)
+
+    #sh = StreamHandler()
+    #sh.setLevel(DEBUG)
+    #formatter = Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    #sh.setFormatter(formatter)
+    #logger.addHandler(sh)
+
+    fh = FileHandler(log_folder) #fh = file handler
+    fh.setLevel(DEBUG)
+    fh_formatter = Formatter('%(asctime)s - %(filename)s - %(name)s - %(lineno)d - %(levelname)s - %(message)s')
+    fh.setFormatter(fh_formatter)
+    logger.addHandler(fh)
+    return logger
+
 class RL():
     def __init__(self, Network, Network_name, system_size=int, p_error=0.1, replay_memory_capacity=int, learning_rate=0.00025,
                 discount_factor=0.95, number_of_actions=3, max_nbr_actions_per_episode=50, device = 'cpu', replay_memory='uniform'):
@@ -60,7 +94,8 @@ class RL():
         # hyperparameters RL
         self.discount_factor = discount_factor
         self.number_of_actions = number_of_actions
-
+        #set up logger
+        self.logger = setup_logger()
 
     def save_network(self, PATH):
         torch.save(self.policy_net, PATH)
@@ -226,6 +261,9 @@ class RL():
                     self.experience_replay(criterion,
                                             optimizer,
                                             batch_size)
+                    self.logger.info('step:{:05}/{:05}'.format(steps_counter, training_steps))
+                    if steps_counter % 100 == 0:
+                        print('step:{:05}/{:05}'.format(steps_counter, training_steps))  
                 # set target_net to policy_net
                 if update_counter % target_update == 0:
                     self.target_net = deepcopy(self.policy_net)
@@ -403,6 +441,9 @@ class RL():
         optimizer=str, save=True, directory_path='network', prediction_list_p_error=[0.1],
         batch_size=32, replay_start_size=32, minimum_nbr_of_qubit_errors=0):
         
+        average_number_of_steps_lists = []
+        mean_q_lists = []
+
         data_all = []
         data_all = np.zeros((1, 19))
 
@@ -421,6 +462,9 @@ class RL():
                                                                                                                                                                         save_prediction=True,
                                                                                                                                                                         num_of_steps=num_of_steps_prediction)
 
+            average_number_of_steps_lists.append(average_number_of_steps_list)
+            mean_q_lists.append(mean_q_list)
+
             data_all = np.append(data_all, np.array([[self.system_size, self.network_name, i+1, self.replay_memory, self.device, self.learning_rate, target_update, optimizer,
                 self.discount_factor, training_steps * (i+1), mean_q_list[0], prediction_list_p_error[0], num_of_predictions, len(failed_syndroms)/2, error_corrected_list[0], ground_state_list[0], average_number_of_steps_list[0],failure_rate, self.p_error]]), axis=0)
             # save training settings in txt file 
@@ -431,5 +475,11 @@ class RL():
             PATH = directory_path + '/network_epoch/size_{3}_{2}_epoch_{0}_memory_{7}_target_update_{5}_optimizer_{6}__steps_{4}_q_{1}_discount_{8}_learning_rate_{9}.pt'.format(
                 i+1, np.round(mean_q_list[0], 4), self.network_name, self.system_size, step, target_update, optimizer, self.replay_memory, self.discount_factor, self.learning_rate)
             self.save_network(PATH)
+
+        with open('new.csv','w') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(average_number_of_steps_lists)
+            writer.writerow(mean_q_lists)
+        csvfile.close()
             
         return error_corrected_list
